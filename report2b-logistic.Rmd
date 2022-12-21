@@ -1,0 +1,143 @@
+---
+title: "logistic model"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r cars}
+library(tidyverse) 
+library(ggplot2) 
+library(Rserve)
+library(mvoutlier)
+library(car)
+library(lmtest)
+library(sandwich)
+library(forecast)
+library(leaps)
+library(gains)
+library(caret)
+library(ggplot2)
+```
+
+Here, we are trying to predict whether the movie will become popular(average rating > 6.37) with sevral predictors
+
+```{r read the data}
+movie.t <- read.csv("/Users/blue/Desktop/Bigdata2/clusterdata.csv")
+summary(movie.t)
+str(movie.t)
+```
+
+
+```{r }
+#cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+plot1 <- ggplot(movie.t, aes(x=runtimeMinutes,y=averageRating, color = Hcluster)) + geom_point(alpha = 0.8)+ theme_classic()+scale_colour_gradientn(colours=rainbow(4))
+print(plot1 +ggtitle("Clustering Plot with Hierarchical"))
+plot2 <- ggplot(movie.t, aes(x=runtimeMinutes,y=averageRating, color = km.cluster)) + geom_point(alpha = 0.8)+ theme_classic()+scale_colour_gradientn(colours=rainbow(4))
+print(plot2 + ggtitle("Clustering Plot with K-Means"))
+```
+
+```{r }
+#make averageRating into 2 categories. if it is bigger than 6.37(sample mean), then popularmovie equal to 1; if not, popularmovie equal to 0.
+mean(movie.t$averageRating)
+movie.t$popularmovie <- ifelse(movie.t$averageRating > 6.37,1,0)
+movie.t$bo_and_num <- movie.t$bo_year_rank * movie.t$numVotes
+#movie.t$worldwidegross_million <- movie.t$worldwidegross/1000000
+#movie.t$numVotes_million <- movie.t$numVotes/1000000
+#movie.t$bo_and_num_million<- movie.t$bo_and_num/1000000
+#partition data
+set.seed(2)
+movie.t %>% mutate(kc1 = ifelse(km.cluster == 1, 1,0 ),
+                     kc2 = ifelse(km.cluster == 2, 1,0),
+                    kc3 = ifelse (km.cluster == 3, 1, 0),
+                    kc4 = ifelse (km.cluster == 4,1,0),
+                    kc5 = ifelse(km.cluster == 5,1,0), 
+                    kc6 = ifelse (km.cluster == 6,1,0),
+                    kc7 = ifelse (km.cluster == 7,1,0))
+# select variables for regression
+selected.var <- c(2,3,6,8,9,10,11,12)   
+
+train.index <- sample(c(1:dim(movie.t)[1]), dim(movie.t)[1]*0.6) 
+#Create and set aside the remaining 40% of the data, to be used after omitting unhelpful data points and unnecessary variables.
+#partition data into training set and validation set in 6:4
+train.t <- movie.t[ train.index, selected.var ]
+valid.t <- movie.t[ -train.index, selected.var ]
+
+```
+
+
+```{r let exlude the outliars}
+#exclude the outliars use 1.5 iqr
+q1 <- quantile(movie.t$numVotes,0.25)
+q3 <- quantile(movie.t$numVotes,0.75)
+iqr<- IQR(movie.t$numVotes)
+movie.clean<-subset(movie.t, movie.t$numVotes  > (q1-1.5*iqr) & movie.t$numVotes  < (q3 +1.5*iqr))
+# select variables for regression
+set.seed(2)
+selected.var <- c(2,3,6,8,9,10,11,12)  
+#partition data into training set and validation set in 6:4
+train.index <- sample(c(1:dim(movie.clean)[1]), dim(movie.clean)[1]*0.6) 
+train.clean <- movie.clean[ train.index,selected.var ]
+valid.clean <- movie.clean[ -train.index,selected.var ]
+
+summary(movie.clean)
+str(movie.clean)
+hist(movie.clean$popularmovie)
+#data is more balanced now
+```
+
+```{r run the logistic model with cleaned data}
+logit.reg3 <- glm(popularmovie~ . , data = train.clean, family = binomial(link = "logit"))
+options(scipen=999)
+summary(logit.reg3) 
+logit.reg.pred3 <- predict(logit.reg3, valid.clean[, -9], type = "response")
+# vif check: vif for each predictors is smaller than 5
+VIFcheck <- lm(popularmovie~ ., data = train.clean)
+vif(VIFcheck)
+
+```
+```{r odds ratio}
+odds <- exp(coef(logit.reg3))
+odds_ratio <- odds-1
+data.frame(odds,odds_ratio) 
+
+```
+```{r }
+
+# check the distribution of residual, it is bell shape
+hist(logit.reg3$residuals,
+     main="Histogram of Residuals",
+     xlab="Residuals") 
+# use predict() with type = "response" to compute predicted probabilities. 
+logit.reg.pred3 <- predict(logit.reg3, valid.clean[, -9], type = "response")
+#accuracy = 0.6805; F1 score = 0.68; recall = 0.7369 ;  specificity=0.6228
+predicted <- ifelse(logit.reg3$fitted > 0.5, 1, 0)
+confusionMatrix(as.factor(predicted), as.factor(train.clean$popularmovie))
+
+```
+
+```{r remove the insiginificant variable }
+
+logit.reg4 <- glm(popularmovie~ .-bo_year_rank-worldwidegross , data = train.clean, family = binomial(link = "logit"))
+options(scipen=999)
+summary(logit.reg4) 
+
+# vif check: vif for each predictors is smaller than 5
+VIFcheck <- lm(popularmovie~ ., data = train.clean)
+vif(VIFcheck)
+
+logit.reg.pred4 <- predict(logit.reg4, valid.clean[, -9], type = "response")
+#accuracy = 0.6798; F1 score = 0.67; recall = 0.7423 ;  specificity=0.6159
+confusionMatrix(as.factor(ifelse(logit.reg4$fitted > 0.5, 1, 0)), as.factor(train.clean$popularmovie))
+```
+```{r odd ratio2}
+
+odds <- exp(coef(logit.reg4))
+odds_ratio <- odds-1
+data.frame(odds,odds_ratio) 
+```
+
