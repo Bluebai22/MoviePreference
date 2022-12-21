@@ -1,8 +1,9 @@
-# Movie Preference
-#Project overview
+# Movie Preference - Project overview
 This is a Machine Learning project I worked on with team of 4 in Brandeis Univeristy, trying to analyze the possible factors which might impact on movie preference using different models.
+
 # Data source
 We used a dataset from IMDb and box office form the years 2000 to 2019. 
+
 # Data Preparation
 Upon viewing the data, we discovered that many categories had missing or invalid data. First, We delete irrelevant rows and only keep the features we think is relevant with our target variables(movie’s box office profit), like genre, runtime minutes, average rating and etc.. Second, we delete the missing vuale because it only take less than 10% line of whole dataset. Third, to benefit the modeling process, we changes certain row into Categrical variables and removed some outliars
 
@@ -25,16 +26,16 @@ We conducted a multiple regression analysis to understand the important features
 
 To receive the best result, we adjust model for serveral time with different methods, such as remove the insignificant variables, remove outliars, add interaction term and higher polynomial variables to indentify the non-linear relationship. 
 
-Finally, We got the best model by adding clusters as new features to multiple regression model. As we expected, we received best result with highest R-squared , 0.876 and lowest RMSE, 29,406,899. From the P value and coefficient, we can see the importance of variables, which is RuntimeMinutes, averageRating, numofVotes, Hcluster 3,4,5,6,7, and 8, Km.cluster 6 and 7, numVotes_sq, bo_and_num
-. 
+Finally, We got the best model by adding clusters as new features to multiple regression model. As we expected, we received best result with highest R-squared , 0.876 and lowest RMSE, 29,406,899. From the P value and coefficient, we can see the importance of variables, which is RuntimeMinutes, averageRating, numofVotes, Hcluster 3,4,5,6,7, and 8, Km.cluster 6 and 7, numVotes_sq, bo_and_num.
+
 ![plot](https://github.com/Bluebai22/MoviePreference/blob/main/Github/Bestmodel-MultipleRegressionWithCluster.png)
 
 # Classification Analysis - Classification Tree
 We tried to used Classification Tree to help us find the potential factors impacting on customer preference. Here, Our target categorical variable is popularmovie which is determined by the average rating of the movie. So, if the movie rating is above 6.37(mean) then the popularmovie variable will be equal to 1. Otherwise, it will be 0. 
 
 After trying different models, like Classification Tree and Random Forest, we received the best model Boosted Tree with coeflearn Zhu, mfinal 100, and maxdepth 3 by grid search. Meanwhile, the F1 score is 0.7258, the accuracy is 0.7186, the sensitivity is 0.6786 and the specificity is 0.7534.
-![plot](https://github.com/Bluebai22/MoviePreference/blob/main/Github/ConfusionMatrix-BoostedTree.png)
+
+![plot](https://github.com/Bluebai22/MoviePreference/blob/main/Github/Classification%20Tree.png)
+![Confusion Matrix](https://github.com/Bluebai22/MoviePreference/blob/main/Github/ConfusionMatrix-BoostedTree.png)
 
 At the end, we also added clusters which we recieved from cluster analysis into features in Classfication Tree model. We found that it can also help to improve the prefermence of the model.
-
-#code
